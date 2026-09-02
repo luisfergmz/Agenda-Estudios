@@ -43,88 +43,126 @@ if 'tareas' not in st.session_state:
         {"materia": "Física II", "tarea": "Informe de laboratorio de calor", "fecha": str(date.today()), "completada": False}
     ]
 
+if 'materia_activa' not in st.session_state:
+    st.session_state.materia_activa = None
+
 # ==================== BARRA LATERAL (NAVEGACIÓN) ====================
 st.sidebar.title("📚 StudyFlow")
 st.sidebar.markdown("---")
 menu = st.sidebar.radio("Menú Principal", ["📖 Gestión por Materias", "📅 Calendario Mensual", "✅ Todas las Tareas"])
 
 st.sidebar.markdown("---")
-st.sidebar.info("💡 **Tip:** Puedes eliminar materias y tareas usando los botones correspondientes en cada sección.")
+st.sidebar.info("💡 **Tip:** Haz clic en una materia para ver sus temas y tareas.")
 
 # ==================== 1. GESTIÓN POR MATERIAS ====================
 if menu == "📖 Gestión por Materias":
-    st.title("Gestión de Materias, Temas y Tareas")
-    st.markdown("Organiza tu contenido académico por materia de forma limpia y rápida.")
+    
+    # Vista Principal: Lista de Materias y opción de agregar/eliminar
+    if st.session_state.materia_activa is None:
+        st.title("Gestión de Materias")
+        st.markdown("Selecciona una materia para entrar a sus detalles o administra tu lista.")
 
-    col1, col2 = st.columns([1, 2])
+        col_izq, col_der = st.columns([1, 1], gap="large")
 
-    with col1:
-        st.subheader("Tus Materias")
-        nueva_materia = st.text_input("Agregar nueva materia")
-        if st.button("Guardar Materia", use_container_width=True):
-            if nueva_materia and nueva_materia not in st.session_state.materias:
-                st.session_state.materias.append(nueva_materia)
-                st.session_state.temas[nueva_materia] = []
-                st.success(f"Materia '{nueva_materia}' agregada.")
-                st.rerun()
+        with col_izq:
+            st.subheader("Tus Materias")
+            if st.session_state.materias:
+                for mat in st.session_state.materias:
+                    c1, c2 = st.columns([0.7, 0.3])
+                    with c1:
+                        if st.button(f"📖 {mat}", key=f"btn_ver_{mat}", use_container_width=True):
+                            st.session_state.materia_activa = mat
+                            st.rerun()
+                    with c2:
+                        if st.button("🗑️ Borrar", key=f"btn_del_mat_{mat}", use_container_width=True):
+                            st.session_state.materias.remove(mat)
+                            if mat in st.session_state.temas:
+                                del st.session_state.temas[mat]
+                            st.session_state.tareas = [t for t in st.session_state.tareas if t['materia'] != mat]
+                            st.rerun()
+            else:
+                st.info("No hay materias registradas.")
 
-        st.markdown("---")
-        st.subheader("Eliminar Materia")
-        materia_a_borrar = st.selectbox("Selecciona materia a eliminar:", st.session_state.materias, key="borrar_mat")
-        if st.button("🗑️ Eliminar Materia Seleccionada", use_container_width=True):
-            if materia_a_borrar in st.session_state.materias:
-                st.session_state.materias.remove(materia_a_borrar)
-                if materia_a_borrar in st.session_state.temas:
-                    del st.session_state.temas[materia_a_borrar]
-                # Borrar también las tareas asociadas a esta materia
-                st.session_state.tareas = [t for t in st.session_state.tareas if t['materia'] != materia_a_borrar]
-                st.success(f"Materia '{materia_a_borrar}' eliminada.")
-                st.rerun()
-
-        materia_seleccionada = st.selectbox("Ver detalles de materia:", st.session_state.materias)
-
-    with col2:
-        if materia_seleccionada:
-            st.subheader(f"Detalles de: {materia_seleccionada}")
-            
-            tab_temas, tab_tareas_mat = st.tabs(["📚 Temas de Estudio", "📝 Tareas de la Materia"])
-
-            with tab_temas:
-                nuevo_tema = st.text_input(f"Nuevo tema para {materia_seleccionada}", key="input_tema")
-                if st.button("Añadir Tema"):
-                    if nuevo_tema:
-                        st.session_state.temas[materia_seleccionada].append(nuevo_tema)
-                        st.success("Tema agregado con éxito.")
-                        st.rerun()
-                
-                st.markdown("##### Temas registrados:")
-                temas_lista = st.session_state.temas.get(materia_seleccionada, [])
-                if temas_lista:
-                    for idx, t in enumerate(temas_lista):
-                        c_t1, c_t2 = st.columns([0.8, 0.2])
-                        with c_t1:
-                            st.markdown(f"- 📌 {t}")
-                        with c_t2:
-                            if st.button("🗑️", key=f"del_tema_{materia_seleccionada}_{idx}"):
-                                st.session_state.temas[materia_seleccionada].pop(idx)
-                                st.rerun()
+        with col_der:
+            st.subheader("Agregar Nueva Materia")
+            nueva_materia = st.text_input("Nombre de la materia", placeholder="Ej. Química")
+            if st.button("Guardar Materia", use_container_width=True):
+                if nueva_materia and nueva_materia not in st.session_state.materias:
+                    st.session_state.materias.append(nueva_materia)
+                    st.session_state.temas[nueva_materia] = []
+                    st.success(f"Materia '{nueva_materia}' agregada.")
+                    st.rerun()
+                elif not nueva_materia:
+                    st.warning("Escribe un nombre válido.")
                 else:
-                    st.info("No hay temas registrados para esta materia.")
+                    st.warning("Esa materia ya existe.")
 
-            with tab_tareas_mat:
-                desc_tarea = st.text_input("Descripción de la tarea", key="input_desc_tarea")
-                fecha_tarea = st.date_input("Fecha límite", key="input_fecha_tarea")
-                
-                if st.button("Añadir Tarea a la Materia"):
-                    if desc_tarea:
-                        st.session_state.tareas.append({
-                            "materia": materia_seleccionada,
-                            "tarea": desc_tarea,
-                            "fecha": str(fecha_tarea),
-                            "completada": False
-                        })
-                        st.success("Tarea guardada correctamente.")
-                        st.rerun()
+    # Vista Detallada de la Materia Seleccionada
+    else:
+        mat_actual = st.session_state.materia_activa
+        
+        if st.button("← Volver a la lista de materias"):
+            st.session_state.materia_activa = None
+            st.rerun()
+
+        st.title(f"Detalles de: {mat_actual}")
+        
+        tab_temas, tab_tareas_mat = st.tabs(["📚 Temas de Estudio", "📝 Tareas de la Materia"])
+
+        with tab_temas:
+            st.subheader(f"Nuevo tema para {mat_actual}")
+            nuevo_tema = st.text_input("Nombre del tema", key="input_tema_val")
+            if st.button("Añadir Tema"):
+                if nuevo_tema:
+                    st.session_state.temas[mat_actual].append(nuevo_tema)
+                    st.success("Tema agregado con éxito.")
+                    st.rerun()
+            
+            st.markdown("### Temas registrados:")
+            temas_lista = st.session_state.temas.get(mat_actual, [])
+            if temas_lista:
+                for idx, t in enumerate(temas_lista):
+                    c_t1, c_t2 = st.columns([0.85, 0.15])
+                    with c_t1:
+                        st.markdown(f"- 📌 {t}")
+                    with c_t2:
+                        if st.button("🗑️", key=f"del_tema_{mat_actual}_{idx}", use_container_width=True):
+                            st.session_state.temas[mat_actual].pop(idx)
+                            st.rerun()
+            else:
+                st.info("No hay temas registrados para esta materia.")
+
+        with tab_tareas_mat:
+            st.subheader(f"Nueva tarea para {mat_actual}")
+            desc_tarea = st.text_input("Descripción de la tarea", key="input_desc_tarea_val")
+            fecha_tarea = st.date_input("Fecha límite", key="input_fecha_tarea_val")
+            
+            if st.button("Añadir Tarea a la Materia"):
+                if desc_tarea:
+                    st.session_state.tareas.append({
+                        "materia": mat_actual,
+                        "tarea": desc_tarea,
+                        "fecha": str(fecha_tarea),
+                        "completada": False
+                    })
+                    st.success("Tarea guardada correctamente.")
+                    st.rerun()
+            
+            st.markdown("### Tareas de esta materia:")
+            tareas_mat = [t for t in st.session_state.tareas if t['materia'] == mat_actual]
+            if tareas_mat:
+                for idx, t in enumerate(tareas_mat):
+                    c_tm1, c_tm2, c_tm3 = st.columns([0.6, 0.25, 0.15])
+                    with c_tm1:
+                        st.markdown(f"- {t['tarea']}")
+                    with c_tm2:
+                        st.markdown(f"📅 {t['fecha']}")
+                    with c_tm3:
+                        if st.button("🗑️", key=f"del_mat_tarea_{idx}", use_container_width=True):
+                            st.session_state.tareas.remove(t)
+                            st.rerun()
+            else:
+                st.info("No hay tareas registradas para esta materia.")
 
 # ==================== 2. CALENDARIO MENSUAL ====================
 elif menu == "📅 Calendario Mensual":
@@ -161,8 +199,7 @@ elif menu == "✅ Todas las Tareas":
             col_check, col_info, col_fecha, col_del = st.columns([0.08, 0.55, 0.22, 0.15])
             
             with col_check:
-                completada = st.checkbox("", value=t['completada'], key=f"chk_{idx}")
-                # Actualizar estado en la lista original
+                completada = st.checkbox("", value=t['completada'], key=f"chk_all_{idx}")
                 original_idx = st.session_state.tareas.index(t)
                 st.session_state.tareas[original_idx]['completada'] = completada
 
@@ -175,7 +212,7 @@ elif menu == "✅ Todas las Tareas":
                 st.markdown(f"<span style='color: #8b949e; font-size: 0.9em;'>📅 {t['fecha']}</span>", unsafe_allow_html=True)
 
             with col_del:
-                if st.button("🗑️ Borrar", key=f"del_tarea_{idx}"):
+                if st.button("🗑️", key=f"del_tarea_all_{idx}", use_container_width=True):
                     st.session_state.tareas.pop(original_idx)
                     st.rerun()
     else:
