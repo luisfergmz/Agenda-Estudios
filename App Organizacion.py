@@ -168,7 +168,8 @@ elif menu == "✅ Todas las Tareas":
 
             with col_info:
                 estilo = "text-decoration: line-through; color: gray;" if completada else ""
-                st.markdown(f"<span style='{estilo}'><b>[{t['materia ' if 'materia ' in t else 'materia'}]</b> {t['tarea']}</span>", unsafe_allow_html=True)
+                nombre_materia = t.get('materia', 'Materia')
+                st.markdown(f"<span style='{estilo}'><b>[{nombre_materia}]</b> {t['tarea']}</span>", unsafe_allow_html=True)
 
             with col_fecha:
                 st.markdown(f"<span style='color: #8b949e; font-size: 0.9em;'>📅 {t['fecha']}</span>", unsafe_allow_html=True)
