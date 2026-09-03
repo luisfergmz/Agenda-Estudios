@@ -1,6 +1,26 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
+import json
+import os
+
+# Archivo local para guardar los datos permanentemente
+DATA_FILE = "datos_estudio.json"
+
+def cargar_datos():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return None
+
+def guardar_datos():
+    datos = {
+        "materias": st.session_state.materias,
+        "temas": st.session_state.temas,
+        "tareas": st.session_state.tareas
+    }
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(datos, f, ensure_ascii=False, indent=4)
 
 # Configuración de la página en Modo Oscuro Minimalista
 st.set_page_config(
@@ -26,22 +46,33 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Simulación de Base de Datos en Memoria (Sesión de Streamlit)
+# Cargar datos guardados o usar valores por defecto
+datos_guardados = cargar_datos()
+
 if 'materias' not in st.session_state:
-    st.session_state.materias = ["Cálculo III", "Física II", "Historia"]
+    if datos_guardados and "materias" in datos_guardados:
+        st.session_state.materias = datos_guardados["materias"]
+    else:
+        st.session_state.materias = ["Cálculo III", "Física II", "Historia"]
 
 if 'temas' not in st.session_state:
-    st.session_state.temas = {
-        "Cálculo III": ["Integrales Dobles", "Series de Fourier"],
-        "Física II": ["Termodinámica", "Electromagnetismo"],
-        "Historia": ["Revolución Industrial"]
-    }
+    if datos_guardados and "temas" in datos_guardados:
+        st.session_state.temas = datos_guardados["temas"]
+    else:
+        st.session_state.temas = {
+            "Cálculo III": ["Integrales Dobles", "Series de Fourier"],
+            "Física II": ["Termodinámica", "Electromagnetismo"],
+            "Historia": ["Revolución Industrial"]
+        }
 
 if 'tareas' not in st.session_state:
-    st.session_state.tareas = [
-        {"materia": "Cálculo III", "tarea": "Resolver lista de ejercicios 4", "fecha": str(date.today()), "completada": False},
-        {"materia": "Física II", "tarea": "Informe de laboratorio de calor", "fecha": str(date.today()), "completada": False}
-    ]
+    if datos_guardados and "tareas" in datos_guardados:
+        st.session_state.tareas = datos_guardados["tareas"]
+    else:
+        st.session_state.tareas = [
+            {"materia": "Cálculo III", "tarea": "Resolver lista de ejercicios 4", "fecha": str(date.today()), "completada": False},
+            {"materia": "Física II", "tarea": "Informe de laboratorio de calor", "fecha": str(date.today()), "completada": False}
+        ]
 
 if 'materia_activa' not in st.session_state:
     st.session_state.materia_activa = None
@@ -52,12 +83,11 @@ st.sidebar.markdown("---")
 menu = st.sidebar.radio("Menú Principal", ["📖 Gestión por Materias", "📅 Calendario Mensual", "✅ Todas las Tareas"])
 
 st.sidebar.markdown("---")
-st.sidebar.info("💡 **Tip:** Haz clic en una materia para ver sus temas y tareas.")
+st.sidebar.info("💡 **Tip:** Tus cambios ahora se guardan automáticamente.")
 
 # ==================== 1. GESTIÓN POR MATERIAS ====================
 if menu == "📖 Gestión por Materias":
     
-    # Vista Principal: Lista de Materias y opción de agregar/eliminar
     if st.session_state.materia_activa is None:
         st.title("Gestión de Materias")
         st.markdown("Selecciona una materia para entrar a sus detalles o administra tu lista.")
@@ -79,6 +109,7 @@ if menu == "📖 Gestión por Materias":
                             if mat in st.session_state.temas:
                                 del st.session_state.temas[mat]
                             st.session_state.tareas = [t for t in st.session_state.tareas if t['materia'] != mat]
+                            guardar_datos()
                             st.rerun()
             else:
                 st.info("No hay materias registradas.")
@@ -90,6 +121,7 @@ if menu == "📖 Gestión por Materias":
                 if nueva_materia and nueva_materia not in st.session_state.materias:
                     st.session_state.materias.append(nueva_materia)
                     st.session_state.temas[nueva_materia] = []
+                    guardar_datos()
                     st.success(f"Materia '{nueva_materia}' agregada.")
                     st.rerun()
                 elif not nueva_materia:
@@ -97,7 +129,6 @@ if menu == "📖 Gestión por Materias":
                 else:
                     st.warning("Esa materia ya existe.")
 
-    # Vista Detallada de la Materia Seleccionada
     else:
         mat_actual = st.session_state.materia_activa
         
@@ -115,6 +146,7 @@ if menu == "📖 Gestión por Materias":
             if st.button("Añadir Tema"):
                 if nuevo_tema:
                     st.session_state.temas[mat_actual].append(nuevo_tema)
+                    guardar_datos()
                     st.success("Tema agregado con éxito.")
                     st.rerun()
             
@@ -128,6 +160,7 @@ if menu == "📖 Gestión por Materias":
                     with c_t2:
                         if st.button("🗑️", key=f"del_tema_{mat_actual}_{idx}", use_container_width=True):
                             st.session_state.temas[mat_actual].pop(idx)
+                            guardar_datos()
                             st.rerun()
             else:
                 st.info("No hay temas registrados para esta materia.")
@@ -145,6 +178,7 @@ if menu == "📖 Gestión por Materias":
                         "fecha": str(fecha_tarea),
                         "completada": False
                     })
+                    guardar_datos()
                     st.success("Tarea guardada correctamente.")
                     st.rerun()
             
@@ -160,6 +194,7 @@ if menu == "📖 Gestión por Materias":
                     with c_tm3:
                         if st.button("🗑️", key=f"del_mat_tarea_{idx}", use_container_width=True):
                             st.session_state.tareas.remove(t)
+                            guardar_datos()
                             st.rerun()
             else:
                 st.info("No hay tareas registradas para esta materia.")
@@ -201,7 +236,9 @@ elif menu == "✅ Todas las Tareas":
             with col_check:
                 completada = st.checkbox("", value=t['completada'], key=f"chk_all_{idx}")
                 original_idx = st.session_state.tareas.index(t)
-                st.session_state.tareas[original_idx]['completada'] = completada
+                if st.session_state.tareas[original_idx]['completada'] != completada:
+                    st.session_state.tareas[original_idx]['completada'] = completada
+                    guardar_datos()
 
             with col_info:
                 estilo = "text-decoration: line-through; color: gray;" if completada else ""
@@ -214,6 +251,7 @@ elif menu == "✅ Todas las Tareas":
             with col_del:
                 if st.button("🗑️", key=f"del_tarea_all_{idx}", use_container_width=True):
                     st.session_state.tareas.pop(original_idx)
+                    guardar_datos()
                     st.rerun()
     else:
         st.info("¡Felicidades! No tienes ninguna tarea registrada por ahora.")
